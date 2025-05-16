@@ -1,0 +1,129 @@
+from bson import ObjectId
+from bson.json_util import dumps
+from flask import Flask, jsonify, request
+from flask_pymongo import PyMongo
+from pymongo import MongoClient
+from flask_cors import CORS
+
+
+app = Flask(__name__)
+# app.config['MONGO_URI'] = "mongodb://localhost:27017/CRUD_db"
+# mongo = PyMongo(app)
+
+CORS(app)
+client = MongoClient("mongodb://localhost:27017/")
+db = client["CRUD_DB"]
+collection = db["users"]
+
+@app.route('/')
+def hello():
+    message = "Hello!"
+    return jsonify(message)
+
+@app.route('/add', methods=['POST'])
+def add_user():
+    json = request.json
+    f_name = json['f_name']
+    l_name = json['l_name']
+    gender = json['gender']
+    mobile_number = json['mobile_number']
+    email = json['email']
+    dob = json['dob']
+    country = json['country']
+    state = json['state']
+
+    if f_name and l_name and gender and mobile_number and email and dob and country and state and request.method == 'POST':
+        user_data = {
+            "f_name" : f_name,
+            "l_name" : l_name,
+            "gender" : gender,
+            "mobile_number" : mobile_number,
+            "email" : email,
+            "dob" : dob,
+            "country" : country,
+            "state" : state
+        }
+
+        collection.insert_one(user_data)
+
+        response = jsonify("User added successfully !")
+        response.status_code = 200
+        return response
+
+    else:
+        return not_found()
+    
+@app.errorhandler(404)
+def not_found(error=None):
+    message = {
+        "status" : 404,
+        "message" : "User not found"
+    }
+    response =  jsonify(message)
+    response.status_code = 404
+
+    return response
+
+@app.route('/users')
+def get_user():
+    user = list(collection.find())
+    response = dumps(user)
+    return response
+
+@app.route('/users/<id>')
+def get_user_from_id(id):
+    user = collection.find_one({'_id': ObjectId(id)})
+    response = dumps(user)
+    return response
+
+@app.route('/delete/<id>', methods = ['DELETE'])
+def delete_user(id):
+    if collection.find_one({'_id': ObjectId(id)}):
+        collection.delete_one({'_id': ObjectId(id)})
+        response = jsonify("User deleted successfully!")
+        response.status_code = 200
+        return response
+    else:
+        response = jsonify("User not found!")
+        response.status_code = 404
+        return response
+
+@app.route('/update/<id>', methods=['PUT'])
+def update_user(id):
+    _id = id
+
+    if not collection.find_one({'_id': ObjectId(id)}):
+        response = jsonify("User not found")
+        response.status_code = 404
+        return response
+    
+    json = request.json
+    f_name = json['f_name']
+    l_name = json['l_name']
+    gender = json['gender']
+    mobile_number = json['mobile_number']
+    email = json['email']
+    dob = json['dob']
+    country = json['country']
+    state = json['state']
+
+    if f_name and l_name and gender and mobile_number and email and dob and country and state and request.method == 'PUT':
+        user_data = {
+            "f_name" : f_name,
+            "l_name" : l_name,
+            "gender" : gender,
+            "mobile_number" : mobile_number,
+            "email" : email,
+            "dob" : dob,
+            "country" : country,
+            "state" : state
+        }
+
+        collection.update_one({'_id': ObjectId(_id) if '$old' in _id else ObjectId(_id)}, {'$set': user_data})
+
+        response = jsonify("User updated successfully!")
+        response.status_code = 200
+        return response
+    
+if __name__ == "__main__":
+    app.run(debug=True)
